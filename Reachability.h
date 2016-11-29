@@ -44,7 +44,10 @@ typedef NS_ENUM(NSInteger, NetworkStatus) {
     // Apple NetworkStatus Compatible Names.
     NotReachable = 0,
     ReachableViaWiFi = 2,
-    ReachableViaWWAN = 1
+    ReachableViaWWAN = 1,
+    ReachableVia4G = 3,
+    ReachableVia2G = 4,
+    ReachableVia3G = 5
 };
 
 @class Reachability;

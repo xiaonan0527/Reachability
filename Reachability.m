@@ -33,7 +33,7 @@
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <netdb.h>
-
+#import <CoreTelephony/CTTelephonyNetworkInfo.h>
 
 NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotification";
 
@@ -120,7 +120,7 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
 }
 
 +(instancetype)reachabilityForInternetConnection
-{
+{   
     struct sockaddr_in zeroAddress;
     bzero(&zeroAddress, sizeof(zeroAddress));
     zeroAddress.sin_len = sizeof(zeroAddress);
@@ -144,7 +144,7 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
 
 // Initialization methods
 
--(instancetype)initWithReachabilityRef:(SCNetworkReachabilityRef)ref
+-(instancetype)initWithReachabilityRef:(SCNetworkReachabilityRef)ref 
 {
     self = [super init];
     if (self != nil) 
@@ -308,6 +308,40 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     return NO;
 }
 
+- (NetworkStatus)networkStatusForWWAN
+{
+#if	TARGET_OS_IPHONE
+    
+    SCNetworkReachabilityFlags flags = 0;
+    
+    if(SCNetworkReachabilityGetFlags(self.reachabilityRef, &flags))
+    {
+        // Check we're REACHABLE
+        if(flags & kSCNetworkReachabilityFlagsReachable)
+        {
+            // Now, check we're on WWAN
+            if(flags & kSCNetworkReachabilityFlagsIsWWAN)
+            {
+                CTTelephonyNetworkInfo *phonyNetwork = [[CTTelephonyNetworkInfo alloc] init];
+                NSString *currentStr = phonyNetwork.currentRadioAccessTechnology;
+                if (currentStr) {
+                    if ([currentStr isEqualToString:CTRadioAccessTechnologyLTE]) {
+                        return ReachableVia4G;
+                    }else if ([currentStr isEqualToString:CTRadioAccessTechnologyGPRS]|| [currentStr isEqualToString:CTRadioAccessTechnologyEdge]){
+                        return ReachableVia2G;
+                    }else{
+                        return ReachableVia3G;
+                    }
+                }
+                return ReachableViaWWAN;
+            }
+        }
+    }
+#endif
+    
+    return NotReachable;
+}
+
 -(BOOL)isReachableViaWiFi 
 {
     SCNetworkReachabilityFlags flags = 0;
@@ -390,7 +424,7 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
             return ReachableViaWiFi;
         
 #if	TARGET_OS_IPHONE
-        return ReachableViaWWAN;
+        return [self networkStatusForWWAN];
 #endif
     }
     
@@ -413,6 +447,15 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
 {
 	NetworkStatus temp = [self currentReachabilityStatus];
 	
+    if (temp == ReachableVia4G) {
+        return NSLocalizedString(@"4G", @"");
+    }
+    if (temp == ReachableVia2G) {
+        return NSLocalizedString(@"2G", @"");
+    }
+    if (temp == ReachableVia3G) {
+        return NSLocalizedString(@"3G", @"");
+    }
 	if(temp == ReachableViaWWAN)
 	{
         // Updated for the fact that we have CDMA phones now!
